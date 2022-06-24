@@ -1,0 +1,7 @@
+---
+
+ssh_config:
+  port: 22
+  protocol: tcp
+  state: enabled
+  zone: public

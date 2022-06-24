@@ -1,0 +1,59 @@
+---
+
+- name: "Update apt cache on Debian based systems"
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 600
+  when: ansible_os_family == "Debian"
+
+- name: "Ensure firewalld is installed"
+  ansible.builtin.package:
+    name:
+      - firewalld
+    state: present
+
+- name: "Enable firewalld service"
+  ansible.builtin.systemd:
+    name: firewalld
+    enabled: true
+    masked: false
+    state: started
+    daemon_reload: true
+
+- name: "Configure ssh port"
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
+    port: "{{ ssh_config.port }}/{{ ssh_config.protocol }}"
+    state: "{{ ssh_config.state }}"
+    zone: "{{ ssh_config.zone }}"
+
+- name: "Remove default services"
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: false
+    state: disabled
+  with_items:
+    - cockpit
+    - dhcpv6-client
+    - ssh
+
+- name: "Configure rules"
+  ansible.posix.firewalld:
+    permanent: true
+    immediate: true
+    port: "{{ item.port }}/{{ item.protocol }}"
+    state: "{{ item.state }}"
+    zone: "{{ item.zone }}"
+  with_items:
+    - "{{ firewall_rules }}"
+  when: firewall_rules is defined
+
+- name: "Disable ufw service"
+  ansible.builtin.systemd:
+    name: ufw
+    enabled: false
+    masked: true
+    state: stopped
+    daemon_reload: true
+  when: ansible_distribution == "Ubuntu"
